@@ -1,0 +1,93 @@
+---
+title: "filter_atac"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+
+```{r}
+library(tidyverse)
+res<- read_tsv("/Users/brandonlogeman/Desktop/galanin_scATACseq_differential_accessible_regions_no_filter.tsv")
+
+res_nest<- res %>%
+  group_by(feature) %>%
+  nest()
+
+saveRDS(res_nest, file = "DAR_of_4_states.RDS")
+
+###The above steps have already been preformed
+
+res_nest <- readRDS("/Users/brandonlogeman/Projects/Sequencing/Intergrated_ATAC_RNA/4_samples/results/DAR_of_4_states.RDS")
+
+cell_number<- read_tsv("/Users/brandonlogeman/Projects/Sequencing/Intergrated_ATAC_RNA/4_samples/results/cell_number_per_cluster.tsv")
+
+
+
+```
+
+###Functions to load
+
+```{r}
+## this is the function to define how many clusters in total should have more than pct.each.out.cutoff
+## default n = 2 which means for a peak to remain, no more than 2 clusters should have more than 10% of cells that have that peak/signal
+
+## num_cluster_off_cells tell you how many CLUSTERS have greater than or equal to the max.num.off.target.cells.per.cluster...it does not tell you have many CELLS are contain the peak in question
+
+filter_atac_per_peak<- function(df, cell_number, n = 2, pct.each.out.cutoff = 10, max.num.off.target.cells.per.cluster = 50){
+  df<- inner_join(df, cell_number, by = c("group" = "cluster_id"))
+  df<- df %>%
+    mutate(num_cells = pct_in * num/100)
+  num_clusters<- sum(df$pct_in >= pct.each.out.cutoff)
+  num_cluster_off_cells<- sum(df$num_cells >= max.num.off.target.cells.per.cluster)
+  if (num_clusters <= n && num_clusters > 0){
+    return (TRUE)
+  } else {
+    if (num_cluster_off_cells > 0 && num_cluster_off_cells <= n ) {
+      return (TRUE)
+    } else {
+      return(FALSE)
+    }
+  }
+} 
+
+## this is the main function to filter for all peaks
+## The above listed filter_atac_per_peak function is nested inside this function
+filter_atac_peaks<- function(res_nest, cell_number, n = 2, pct.in.cutoff = 15, 
+                             pct.each.out.cutoff = 10,
+                             max.num.off.target.cells.per.cluster = 50,
+                             pct.out.cutoff = 10,
+                             padj.cutoff = 0.05){
+  
+  indx<- purrr::map_lgl(res_nest$data, function(x) filter_atac_per_peak(df = x, cell_number = cell_number, n = n, pct.each.out.cutoff = pct.each.out.cutoff, max.num.off.target.cells.per.cluster = max.num.off.target.cells.per.cluster))
+  res_filter<- res_nest[indx,] %>%
+    unnest()
+  res_filter<- res_filter %>%
+    filter(pct_in > pct.in.cutoff, padj < padj.cutoff, logFC >0) %>%
+    group_by(group) %>%
+    arrange(desc(logFC), padj) %>%
+    tidyr::separate(feature, into=c("chr", "start", "end"), sep = "-") %>%
+    nest() %>% 
+    arrange(group)
+
+}
+```
+
+###Filter peak set based on listed variables
+
+```{r}
+## you can play with the n, pct.in.cutoff, pct.each.out.cutoff and pt.out.cutoff etc
+filtered_peaks<- filter_atac_peaks(res_nest,  cell_number= cell_number, n = 2, pct.in.cutoff = 15, 
+                             pct.each.out.cutoff = 12,
+                             max.num.off.target.cells.per.cluster = 50,
+                             pct.out.cutoff = 8,
+                             padj.cutoff = 0.05)
+
+
+## cluster 11 specific peaks
+filtered_peaks$data[10]
+
+## write the peaks to file for each cluster
+walk2(filtered_peaks$data, filtered_peaks$group, function(x,y) write_tsv(x = x, path = paste0("cluster_",y,"_filtered_peaks.tsv") ))
+
+```
