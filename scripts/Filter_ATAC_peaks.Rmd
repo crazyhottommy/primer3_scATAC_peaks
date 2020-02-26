@@ -17,6 +17,11 @@ library(tidyverse)
 # for measuring time elapse
 #library(tictoc)
 
+## this is the function to define how many clusters in total should have more than pct.each.out.cutoff
+## default n = 2 which means for a peak to remain, no more than 2 clusters should have more than 10% of cells that have that peak/signal
+## num_cluster_off_cells tell you how many CLUSTERS have greater than or equal to the max.num.off.target.cells.per.cluster...it does not tell you have many CELLS are contain the peak in question
+
+
 filter_atac_per_peak<- function(df, cell_number, n = 2, pct.each.out.cutoff = 10, max.num.off.target.cells = 10){
   
   ## add pct in and cell numbe  for each cluster 
@@ -51,6 +56,8 @@ filter_atac_per_peak<- function(df, cell_number, n = 2, pct.each.out.cutoff = 10
   }
 } 
 
+## this is the main function to filter for all peaks
+## The above filter_atac_per_peak function is nested inside this function
 
 filter_atac_peaks<- function(res_nest, cell_number, n = 2, pct.in.cutoff = 15, 
                              pct.each.out.cutoff = 10,
