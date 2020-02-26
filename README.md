@@ -1,7 +1,9 @@
 # primer3_batch
 
-design batch primers using primer3
+design batch primers using primer3.
 
+For single-cell ATACseq data, after you find the differential peaks among clusters, you may want to clone the cluster
+specific peaks into vectors and test experimentally. This repo contains scripts to design primers for the cloning purpose.
 
 ### install primer3
 
@@ -43,9 +45,18 @@ After filtering using the filtering script in `scripts/` folder.
 In this example, just take the first 10 regions.
 
 ```bash
+# make a bed file contains three columns chr, start, end
 cat cluster_10_4sample_specific_peak_DNA_with_phylop.tsv | sed '1d' | cut -f1-3 | head > cluster10_peaks.bed
+
+# without any argument, see the help
+./primer3_batch 
+
+
 ./primer3_batch cluster10_peaks.bed cluster10 mm10.genome genome.fa 150 template.txt cluster10
 ```
+
+You can change the `template.txt` file for primer design parameters. See http://primer3.org/manual.html for more
+details.
 
 A file named `cluster10_primers.txt` should be created.
 
